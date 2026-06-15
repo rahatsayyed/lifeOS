@@ -9,6 +9,13 @@ export const metadata: Metadata = {
   title: 'Life OS',
   description: 'Track your habits, goals, tasks, recipes, and reminders',
   manifest: '/manifest.json',
+  icons: {
+    icon: [
+      { url: '/favicon.ico', sizes: '196x196' },
+      { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
+    ],
+    apple: '/icons/icon-192.png',
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
