@@ -6,6 +6,7 @@ export async function proxy(request: NextRequest) {
 
   // These routes never need an auth check — return immediately, no Supabase call
   if (
+    pathname === '/' ||
     pathname.startsWith('/login') ||
     pathname.startsWith('/callback') ||
     pathname.startsWith('/api') ||
