@@ -20,9 +20,6 @@ npx web-push generate-vapid-keys
 ```
 Set `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT=mailto:you@email.com`
 
-### Cron Secret
-Set `CRON_SECRET` to any random string — add it in Vercel env vars too.
-
 ## 2. Database
 
 Run migrations in order in the Supabase SQL editor:
@@ -30,8 +27,36 @@ Run migrations in order in the Supabase SQL editor:
 1. `supabase/migrations/001_initial_schema.sql`
 2. `supabase/migrations/002_rls_policies.sql`
 3. `supabase/migrations/003_realtime_enable.sql`
+3. `supabase/migrations/004_pg_cron_reminders.sql`
 
-## 3. Run Locally
+## 3. Reminder Push Notifications (Supabase Edge Function + pg_cron)
+
+Vercel Hobby only allows daily cron jobs. Reminders use a Supabase Edge Function triggered by `pg_cron` instead (free, runs every minute).
+
+### Deploy the Edge Function
+
+```bash
+npx supabase functions deploy send-reminders --project-ref YOUR_PROJECT_REF
+```
+
+Set these secrets on the Edge Function (Supabase Dashboard → Edge Functions → send-reminders → Secrets):
+- `VAPID_PUBLIC_KEY` — your VAPID public key (without `NEXT_PUBLIC_` prefix)
+- `VAPID_PRIVATE_KEY` — your VAPID private key
+- `VAPID_SUBJECT` — e.g. `mailto:you@email.com`
+
+`SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are automatically injected by Supabase.
+
+### Set Up pg_cron
+
+Edit `supabase/migrations/004_pg_cron_reminders.sql`, replace:
+- `YOUR_PROJECT_REF` with your Supabase project ref (found in Settings → General)
+- `YOUR_ANON_KEY` with your `anon public` key
+
+Then run it in the Supabase SQL editor.
+
+> **Note:** `pg_cron` and `pg_net` must be enabled. Go to Database → Extensions and enable them if not already active.
+
+## 4. Run Locally
 
 ```bash
 npm run dev
@@ -39,15 +64,21 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) — you'll be redirected to `/login`.
 
-## 4. Deploy to Vercel
+## 5. Deploy to Vercel
 
 ```bash
 npx vercel
 ```
 
-Add all `.env.local` variables as Vercel environment variables. The `vercel.json` cron runs `/api/push/send` every minute to fire reminders.
+Add these environment variables in Vercel Dashboard (or via `vercel env add`):
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `NEXT_PUBLIC_VAPID_PUBLIC_KEY`
+- `VAPID_PRIVATE_KEY`
+- `VAPID_SUBJECT`
 
-## 5. PWA Icons
+## 6. PWA Icons
 
 Add your icons to `public/icons/`:
 - `icon-192.png` (192×192)
