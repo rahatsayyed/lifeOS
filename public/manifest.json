@@ -4,8 +4,8 @@
   "description": "Track your habits, goals, tasks, recipes, and reminders",
   "start_url": "/habits",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#6366f1",
+  "background_color": "#F7F1EA",
+  "theme_color": "#7A4A2C",
   "orientation": "portrait",
   "icons": [
     {
