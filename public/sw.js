@@ -1,19 +1,16 @@
 const CACHE_NAME = 'life-os-v1'
-const APP_SHELL = [
-  '/',
-  '/habits',
-  '/goals',
-  '/tasks',
-  '/recipes',
-  '/reminders',
-  '/offline.html',
-]
+
+// Only cache truly static assets — NOT authenticated app routes.
+// App routes require auth cookies the SW doesn't have during install,
+// so cache.addAll on them causes a failed install → skipWaiting → clients.claim → reload loop.
+const STATIC_ASSETS = ['/offline.html']
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL))
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
   )
-  self.skipWaiting()
+  // Do NOT call skipWaiting() — let the SW wait for all tabs to close before activating.
+  // Calling it causes clients.claim() to steal open pages and trigger a reload.
 })
 
 self.addEventListener('activate', (event) => {
@@ -22,7 +19,7 @@ self.addEventListener('activate', (event) => {
       Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
     )
   )
-  self.clients.claim()
+  // Do NOT call clients.claim() — it forces a reload on pages that loaded without this SW.
 })
 
 self.addEventListener('fetch', (event) => {
@@ -31,13 +28,7 @@ self.addEventListener('fetch', (event) => {
   // Skip non-GET and cross-origin requests
   if (event.request.method !== 'GET' || url.origin !== self.location.origin) return
 
-  // API routes: network first
-  if (url.pathname.startsWith('/api/')) {
-    event.respondWith(fetch(event.request).catch(() => new Response('', { status: 503 })))
-    return
-  }
-
-  // Navigation: network first, fall back to offline page
+  // Navigation requests: always network first, offline.html fallback
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request).catch(() => caches.match('/offline.html'))
@@ -45,18 +36,26 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
-  // Static assets: cache first
-  event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if (cached) return cached
-      return fetch(event.request).then((response) => {
-        if (response.ok) {
-          const clone = response.clone()
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone))
-        }
-        return response
+  // Static assets (_next/static): cache first, then network
+  if (url.pathname.startsWith('/_next/static/')) {
+    event.respondWith(
+      caches.match(event.request).then((cached) => {
+        if (cached) return cached
+        return fetch(event.request).then((response) => {
+          if (response.ok) {
+            const clone = response.clone()
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone))
+          }
+          return response
+        })
       })
-    })
+    )
+    return
+  }
+
+  // Everything else (icons, manifest, etc.): network first
+  event.respondWith(
+    fetch(event.request).catch(() => caches.match(event.request))
   )
 })
 
